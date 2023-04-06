@@ -1,0 +1,238 @@
+--
+-- 23c Free - Wider Tables Example
+--
+-- Oracle Database 23c Free – Developer Release is the first release of the next-generation
+--   Oracle Database, allowing developers a head-start on building applications with 
+--   innovative 23c features that simplify development of modern data-driven apps. The 
+--   entire feature set of Oracle Database 23c is planned to be generally available within 
+--   the next 12 months.
+--
+
+--
+-- This example assumes that the following initialization parameters have been set:
+--   compatible = 23.0.0
+--   max_columns = EXTENDED
+--
+-- and the following privileges granted:
+--
+--   CREATE TABLE 
+--   CREATE PROCEDURE
+--   EXECUTE on sys.dbms_sql
+--
+
+--
+-- Three helper procedures are created to make manipulating long strings of columns 
+-- easier by using PL/SQL and CLOBs
+--
+
+create or replace procedure create_table_wide(
+  table_name IN VARCHAR2,
+  num_cols   IN NUMBER )
+is
+  ct    varchar2(32000);
+  ctsql clob;
+  cur   integer;
+begin
+  ct := 'create table '||table_name||' (c1 number';
+  dbms_lob.createtemporary(ctsql, false);
+  dbms_lob.write(ctsql, length(ct), 1, ct);
+  ct := '';
+
+  dbms_output.put_line(ct);
+  for colnum in 2 .. num_cols loop
+    ct := ct || ', c'||colnum||' number';
+    if mod(colnum, 1000) = 0 then
+      -- append the chunk we have and reset the temp varchar2
+      dbms_lob.writeappend(ctsql, length(ct), ct);
+      ct := '';
+    end if;
+  end loop;
+  --
+  -- append the final chunk
+  --
+  ct :=  ct || ')';
+  dbms_lob.writeappend(ctsql, length(ct), ct);
+  --dbms_output.put_line(ctsql);
+  --
+  -- dbms_sql.parse auto executes the DDL, don't need to call dbms_sql.execute
+  cur := dbms_sql.open_cursor;
+  dbms_sql.parse(
+    c             => cur,
+    statement     => ctsql,
+    language_flag => dbms_sql.native );
+  --
+  -- cleanup
+  --
+  dbms_sql.close_cursor(cur);
+  dbms_lob.freetemporary(ctsql);
+end;
+/
+show errors
+
+
+create or replace procedure insert_table_wide(
+  table_name IN VARCHAR2,
+  num_cols   IN NUMBER,
+  num_rows   IN NUMBER DEFAULT 1 )
+is
+  ct    clob;
+  ctsql clob;
+  cur   integer;
+  rwnum number := 0;
+  clnum number := 0;
+  val   number := 0;
+  l_offset pls_integer := 1;
+begin
+  for r_iter in 1 .. num_rows loop
+    rwnum := rwnum + 1;
+    ct := 'insert into '|| table_name ||' (c1';
+    for c_iter in 2 .. num_cols loop
+      ct := ct || ',c' || to_char(c_iter) ;
+    end loop;
+    ct := ct || ') ';
+    --
+    ct := ct || 'values (' || to_char(rwnum);
+    --
+    for c_iter in 2 .. num_cols loop
+      clnum := clnum + 1;
+      val := rwnum + clnum;
+      ct := ct || ',' || to_char(val) ;
+    end loop;
+    --
+    ct := ct || ')';
+    --
+    -- Output the first line to verify
+    --
+    if rwnum = 1 then
+      loop
+        exit when l_offset > dbms_lob.getlength(ct);
+        dbms_output.put_line(dbms_lob.substr(ct, 4000, l_offset));
+        l_offset := l_offset + 4000;
+      end loop;
+    end if;
+    --
+    execute immediate ct;
+    clnum := 0;
+  end loop;
+end;
+/
+show errors
+
+
+create or replace procedure select_table_wide(
+  p_table_name IN VARCHAR2,
+  p_num_cols   IN NUMBER,
+  p_num_rows   IN NUMBER )
+is
+  v_tab_col_num number;
+  ct            clob;
+  ctsql         clob;
+  cur           integer;
+  rwnum         number := 0;
+  clnum         number := 0;
+begin
+  select max(column_id) into v_tab_col_num
+  from user_tab_columns where table_name = p_table_name; 
+  --
+  for r_iter in 1 .. p_num_rows loop
+    rwnum := rwnum + 1;
+    ct := 'select ';
+    --
+    for c_iter in 1 .. p_num_cols loop
+      clnum := floor(dbms_random.value(1,v_tab_col_num));
+      if c_iter = 1 then
+        ct := ct || 'c' || to_char(clnum) ;
+      else
+        ct := ct || ',c' || to_char(clnum) ;
+      end if;
+    end loop;
+    --
+    ct := ct || ' from ' || p_table_name;
+    dbms_output.put_line(ct);
+    execute immediate ct;
+  end loop;
+end;
+/
+show errors
+
+
+--
+-- Example of creating and accessing tables wider than 1000 columns 
+--
+
+Connected to:
+Oracle Database 23c Free, Release 23.0.0.0.0 - Developer-Release
+Version 23.2.0.0.0
+
+SQL> show parameter max_columns
+
+NAME                                 TYPE        VALUE
+------------------------------------ ----------- ------------------------------
+max_columns                          string      EXTENDED
+SQL>
+
+--
+-- Create at table called WIDE_COL_TAB with 4000 columns and insert 10 rows
+--
+ 
+SQL> exec create_table_wide('WIDE_COL_TAB', 4000);
+
+PL/SQL procedure successfully completed.
+
+SQL> exec insert_table_wide('WIDE_COL_TAB', 4000, 10);
+
+PL/SQL procedure successfully completed.
+
+SQL> select count(column_name) from user_tab_columns where table_name = 'WIDE_COL_TAB';
+
+COUNT(COLUMN_NAME)
+------------------
+              4000
+
+SQL> select count(*) from WIDE_COL_TAB;
+
+  COUNT(*)
+----------
+        10
+
+SQL>
+
+
+--
+-- Generate 5 SELECT statements querying different column combinations 
+--
+
+SQL> set serveroutput on;
+SQL> exec select_table_wide('WIDE_COL_TAB',10,5);
+select c2473,c3688,c2149,c2771,c21,c3341,c1898,c1174,c3212,c2048 from WIDE_COL_TAB
+select c2605,c3091,c2003,c2262,c554,c1804,c1454,c2111,c3658,c1601 from WIDE_COL_TAB
+select c1915,c940,c238,c2424,c862,c578,c2797,c2090,c3189,c3168 from WIDE_COL_TAB
+select c782,c2213,c1545,c2737,c208,c1446,c989,c2245,c294,c2362 from WIDE_COL_TAB
+select c1900,c3335,c1290,c2377,c60,c3498,c2,c1300,c1765,c741 from WIDE_COL_TAB
+
+PL/SQL procedure successfully completed.
+
+SQL>
+
+--
+-- Using one of the 5 generated SELECT statements, query the wide table 
+--
+
+SQL> select c1915,c940,c238,c2424,c862,c578,c2797,c2090,c3189,c3168 from WIDE_COL_TAB;
+
+     C1915       C940       C238      C2424       C862       C578      C2797      C2090      C3189      C3168
+---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ----------
+      1916        941        239       2425        863        579       2798       2091       3190       3169
+      1915        940        238       2424        862        578       2797       2090       3189       3168
+      1919        944        242       2428        866        582       2801       2094       3193       3172
+      1917        942        240       2426        864        580       2799       2092       3191       3170
+      1918        943        241       2427        865        581       2800       2093       3192       3171
+      1922        947        245       2431        869        585       2804       2097       3196       3175
+      1921        946        244       2430        868        584       2803       2096       3195       3174
+      1920        945        243       2429        867        583       2802       2095       3194       3173
+      1923        948        246       2432        870        586       2805       2098       3197       3176
+      1924        949        247       2433        871        587       2806       2099       3198       3177
+
+10 rows selected.
+
+SQL>
