@@ -1,8 +1,12 @@
-****
-23c Fast Ingest New Features Demonstration
-This assumes a 23c Free database is being used
-****
-
+-- 23c Fast Ingest New Features Demonstration
+-- This assumes a 23c Free database is being used
+--
+-- Oracle Database 23c Free – Developer Release is the first release of the next-generation
+--   Oracle Database, allowing developers a head-start on building applications with 
+--   innovative 23c features that simplify development of modern data-driven apps. The 
+--   entire feature set of Oracle Database 23c is planned to be generally available within 
+--   the next 12 months.
+--
 -- Set up memory areas for the memoptimize write area
 sqlplus / as sysdba
 alter system set large_pool_size=512m scope=spfile;
@@ -29,9 +33,9 @@ grant select any table to memopt;
 grant select any dictionary to memopt;
 grant alter session to memopt;
 
-****
-Fast Ingest Example
-****
+----
+-- Fast Ingest Example
+----
 
 -- Connect to the memopt user and set up a table for memoptimize for write
 connect memopt/memopt@freepdb1
@@ -93,10 +97,10 @@ ORDER BY
   t1.name;
 
 
-****
-Session level setting - 
-Avoids the need to specify the memoptimize_write hint
-****
+----
+-- Session level setting - 
+-- Avoids the need to specify the memoptimize_write hint
+----
 
 alter session set memoptimize_writes=on;
 
@@ -122,9 +126,9 @@ ORDER BY
   t1.name;
 
 
-****
-LOB Support
-****
+----
+-- LOB Support
+----
 
 create table test_SF_fi (
   id number primary key,
@@ -146,9 +150,9 @@ exec sys.dbms_session.sleep(10);
 select * from test_SF_fi;
 
 
-****
-Parition Support
-****
+----
+-- Parition Support
+----
 
 create table test_fi_part (
   id number primary key,
@@ -188,9 +192,9 @@ select * from test_fi_part;
 select * from test_fi_part partition(part_1998);
 
 
-****
-Encryption Support
-****
+----
+-- Encryption Support
+----
 
 sqlplus / as sysdba
 
@@ -224,7 +228,7 @@ SET LINESIZE 200
 COLUMN wrl_parameter FORMAT A50
 SELECT * FROM v$encryption_wallet;
 
-## Assumes a wallet and keystore have been setup
+-- Assumes a wallet and keystore have been setup
 
 -- Set up an encrypted tablespace for testing
 sqlplus / as sysdba
