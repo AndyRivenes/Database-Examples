@@ -19,5 +19,5 @@ Oracle Database 23c Fast Ingest feature examples
 ```
 Directory: Fast Ingest
 
-  fast-ingest-23c-examples.txt - Shows syntax to run the new 23c Fast Ingest features. Assumes a 23c Free database.
+  fast-ingest-23c-demos.sql - Shows syntax to run the new 23c Fast Ingest features. Assumes a 23c Free database.
 ```
