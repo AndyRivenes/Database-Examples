@@ -6,7 +6,7 @@ Oracle Database 23ai Free – Developer Release is the first release of the next
    entire feature set of Oracle Database 23ai is planned to be generally available within 
    the next 12 months.
 
-Oracle Database 23c Free Wider Tables example
+Oracle Database 23ai Free Wider Tables example
 
 ```
 Directory: wider-tables
